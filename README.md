@@ -175,6 +175,7 @@ Der QR-Code nutzt auf einem Server die Adresse, unter der der Tisch aufgerufen w
 1. Änderungen am Tisch in `src/app.html` vornehmen (oder die neue Version aus claude.ai dort einfügen), an der Startseite in `src/landing.html`.
 2. Einmalig `npm install`, danach `npm run build:page`. Das erzeugt `public/index.html`, `public/landing.html` und die Kartenbilder in `public/cards/` neu.
 3. Committen und pushen. Render baut automatisch neu, bei Docker `docker build` und den Container neu starten.
+4. **claude.ai-Version mitziehen:** Der Tisch auf claude.ai (Artifact „Treetek Planning Poker“) ist genau `src/app.html`. Nach jeder Änderung an `src/app.html` das Artifact mit dieser Datei neu veröffentlichen, damit beide Versionen gleich bleiben. Die Startseite (`src/landing.html`) gibt es nur in der Server-Version: Auf claude.ai ist der Link selbst der Tisch.
 
 ---
 
