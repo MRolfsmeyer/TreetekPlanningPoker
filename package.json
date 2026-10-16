@@ -1,0 +1,36 @@
+{
+  "name": "treetek-planning-poker",
+  "version": "1.0.0",
+  "description": "Treetek Planning Poker – eigenständig, ohne claude.ai",
+  "main": "server.js",
+  "bin": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "build:page": "node tools/build-page.js",
+    "build:exe": "npm run build:page && pkg . --targets node22-win-x64 --output dist/Treetek-Planning-Poker.exe --compress GZip"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@fontsource/atkinson-hyperlegible": "^5.0.0",
+    "@fontsource/bricolage-grotesque": "^5.0.0",
+    "@yao-pkg/pkg": "^6.0.0"
+  },
+  "pkg": {
+    "assets": [
+      "public/**/*",
+      "vendor/**/*"
+    ],
+    "outputPath": "dist"
+  },
+  "files": [
+    "server.js",
+    "public",
+    "vendor"
+  ]
+}
