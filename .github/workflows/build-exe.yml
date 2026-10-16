@@ -1,0 +1,21 @@
+# Baut die Windows-.exe auf GitHub. Starten: Reiter „Actions" → „Windows-Programm bauen" → „Run workflow".
+# Danach liegt die .exe unten im Lauf unter „Artifacts" zum Herunterladen.
+name: Windows-Programm bauen
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+jobs:
+  exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build:exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Treetek-Planning-Poker-Windows
+          path: dist/Treetek-Planning-Poker.exe

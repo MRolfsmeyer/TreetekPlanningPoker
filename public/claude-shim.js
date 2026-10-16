@@ -4,22 +4,31 @@
  *   claude.use('db')   Dokumente, Sammlungen, Live-Updates
  *   claude.use('user') eigene Kennung
  *   claude.use('room') wer gerade da ist
- * Jeder Browser-Tab ist eine eigene Person (Kennung im sessionStorage).
+ * Jeder Browser-Tab ist eine eigene Person.
+ *
+ * Identität: Der Tab hat einen geheimen Schlüssel (sessionStorage), der nie an andere geht.
+ * Der Server leitet daraus die öffentliche Kennung ab, die alle am Tisch sehen.
+ * Wer nur die Kennung kennt, kann sich deshalb nicht als diese Person ausgeben.
  */
 (() => {
   'use strict';
 
-  // ---- Kennung pro Tab ----------------------------------------------------
-  const UID_KEY = 'pp.uid';
-  function newUid() {
+  // ---- Geheimer Schlüssel pro Tab, Kennung vom Server ------------------------
+  const SECRET_KEY = 'pp.secret';
+  function randomId(len) {
     const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    const buf = new Uint8Array(22);
+    const buf = new Uint8Array(len);
     crypto.getRandomValues(buf);
-    return 'u_' + Array.from(buf, b => abc[b % abc.length]).join('');
+    return Array.from(buf, b => abc[b % abc.length]).join('');
   }
-  let uid = null;
-  try { uid = sessionStorage.getItem(UID_KEY); } catch { /* egal */ }
-  if (!uid) { uid = newUid(); try { sessionStorage.setItem(UID_KEY, uid); } catch { /* egal */ } }
+  let secret = null;
+  try { secret = sessionStorage.getItem(SECRET_KEY); } catch { /* egal */ }
+  if (!secret || !/^[A-Za-z0-9]{32,64}$/.test(secret)) { secret = randomId(40); try { sessionStorage.setItem(SECRET_KEY, secret); } catch { /* egal */ } }
+  try { sessionStorage.removeItem('pp.uid'); } catch { /* alte Version */ }
+
+  let uid = null;             // öffentliche Kennung, kommt mit der Antwort auf „hello“
+  let resolveUid;
+  const uidReady = new Promise(r => { resolveUid = r; });
 
   // ---- Tisch aus der Adresse (/t/ABC123) und Moderationsschlüssel ------------
   const tableMatch = location.pathname.match(/^\/t\/([A-Za-z0-9]{6})/);
@@ -51,7 +60,9 @@
       retry = 0;
       const id = ++seq;
       pending.set(id, {
-        resolve: () => {
+        resolve: result => {
+          uid = result.uid;
+          resolveUid(uid);
           ready = true;
           // Abos nach einem Verbindungsabbruch erneuern
           for (const [subId, s] of subs) raw({ op: 'sub', subId, kind: s.kind, path: s.path });
@@ -62,7 +73,7 @@
           if (err && err.code === 'not_found') location.replace('/?fehlt=' + encodeURIComponent(TABLE || ''));
         },
       });
-      ws.send(JSON.stringify({ id, op: 'hello', uid, table: TABLE, modKey }));
+      ws.send(JSON.stringify({ id, op: 'hello', secret, table: TABLE, modKey }));
     };
     ws.onmessage = e => {
       let msg;
@@ -136,8 +147,8 @@
   function colRef(path) {
     return {
       path,
-      doc: id => docRef(path + '/' + (id || newUid().slice(2))),
-      add: async data => { const ref = docRef(path + '/' + newUid().slice(2)); await ref.set(data); return ref; },
+      doc: id => docRef(path + '/' + (id || randomId(22))),
+      add: async data => { const ref = docRef(path + '/' + randomId(22)); await ref.set(data); return ref; },
       onSnapshot: next => subscribe('col', path, next),
     };
   }
@@ -145,13 +156,13 @@
 
   // ---- user -------------------------------------------------------------------
   const user = {
-    id: async () => uid,
-    me: async () => ({ id: uid, name: '', avatarUrl: '', color: '#3748a4', email: null, isOwner: false, canEdit: true }),
+    id: () => uidReady,
+    me: async () => ({ id: await uidReady, name: '', avatarUrl: '', color: '#3748a4', email: null, isOwner: false, canEdit: true }),
     isOwner: async () => false,
     canEdit: async () => true,
     can: async () => true,
     name: async () => '',
-    profiles: async ids => Object.fromEntries([].concat(ids).map(id => [id, { id, name: '', avatarUrl: '', color: '#3748a4', email: null, isMe: id === uid, guest: false }])),
+    profiles: async ids => (await uidReady, Object.fromEntries([].concat(ids).map(id => [id, { id, name: '', avatarUrl: '', color: '#3748a4', email: null, isMe: id === uid, guest: false }]))),
   };
 
   // ---- room (nur Anwesenheit) -------------------------------------------------

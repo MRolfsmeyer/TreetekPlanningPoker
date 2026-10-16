@@ -159,7 +159,9 @@ Der QR-Code nutzt auf einem Server die Adresse, unter der der Tisch aufgerufen w
 
 - **Ohne `ACCESS_PASSWORD`** kann jede Person Tische anlegen und mitspielen, die die Adresse erreicht. Fremde Tische findet man nur mit dem Code. Im lokalen Netz für Demos in Ordnung, im Internet immer ein Passwort setzen.
 - **Verdeckte Karten** liegen bis zum Aufdecken in einem privaten Bereich, den nur die Person selbst lesen kann. Der Server lässt außerdem niemanden den Platz einer anderen Person ändern und erlaubt Aufdecken, Runden und Zurücksetzen nur der Moderation.
+- **Identität:** Jeder Browser-Tab hat einen geheimen Schlüssel, aus dem der Server die öffentliche Kennung ableitet. Wer nur die Kennung einer anderen Person kennt (sie ist am Tisch sichtbar), kann sich damit nicht als diese Person ausgeben.
 - **Moderationsschlüssel** speichert der Server nur als Prüfsumme (SHA-256).
+- **Speichern:** Die Datendatei wird erst als temporäre Datei geschrieben und dann umbenannt. Ist sie beim Start beschädigt, legt der Server sie als `…defekt-<Zeit>.json` beiseite, statt sie zu überschreiben.
 - Es werden **keine personenbezogenen Daten** außer den selbst gewählten Anzeigenamen gespeichert.
 
 ---

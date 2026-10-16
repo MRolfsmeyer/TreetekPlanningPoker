@@ -45,6 +45,7 @@ const TABLE_TTL_MS = 30 * 24 * 60 * 60 * 1000;    // Tische ohne Aktivität nach
 const PATH_SEGMENT = /^[A-Za-z0-9_\-.~:@+]{1,200}$/;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';  // ohne leicht verwechselbare Zeichen (0/O, 1/I)
 const CODE_RE = /^[A-Z2-9]{6}$/;
+const SECRET_RE = /^[A-Za-z0-9]{32,64}$/;
 
 // ---------------------------------------------------------------------------
 // Datenablage (im Speicher, regelmäßig in eine JSON-Datei gesichert)
@@ -54,21 +55,45 @@ const CODE_RE = /^[A-Z2-9]{6}$/;
 const store = new Map();
 
 function loadStore() {
+  let text;
+  try { text = fs.readFileSync(DATA_FILE, 'utf8'); }
+  catch { return; /* erster Start, noch keine Datei */ }
   try {
-    const raw = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    const raw = JSON.parse(text);
     for (const [k, v] of Object.entries(raw)) if (k.startsWith('meta/') || k.startsWith('t/')) store.set(k, v);
     console.log(`Gespeicherte Tische geladen (${[...store.keys()].filter(k => k.startsWith('meta/')).length}).`);
-  } catch { /* erster Start oder keine Datei */ }
+  } catch (err) {
+    // Kaputte Datei nicht stillschweigend überschreiben, sondern zur Rettung beiseitelegen
+    const backup = DATA_FILE.replace(/\.json$/, '') + `.defekt-${Date.now()}.json`;
+    try { fs.renameSync(DATA_FILE, backup); } catch { /* egal */ }
+    console.warn(`Datendatei war beschädigt (${err.message}). Sie liegt jetzt unter ${backup}. Start mit leerem Stand.`);
+  }
 }
 
-let saveTimer = null;
+// Sicher speichern: erst in eine temporäre Datei schreiben, dann umbenennen.
+// Bricht der Server mitten im Schreiben ab, bleibt die alte Datei vollständig erhalten.
+const TMP_FILE = DATA_FILE + '.tmp';
+let saveTimer = null, saving = false, saveAgain = false;
 function scheduleSave() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    fs.writeFile(DATA_FILE, JSON.stringify(Object.fromEntries(store)), err => {
-      if (err) console.warn('Speichern fehlgeschlagen:', err.message);
-    });
-  }, 400);
+  saveTimer = setTimeout(saveNow, 400);
+}
+function saveNow() {
+  if (saving) { saveAgain = true; return; }
+  saving = true;
+  fs.writeFile(TMP_FILE, JSON.stringify(Object.fromEntries(store)), err => {
+    const done = e => {
+      if (e) console.warn('Speichern fehlgeschlagen:', e.message);
+      saving = false;
+      if (saveAgain) { saveAgain = false; saveNow(); }
+    };
+    if (err) return done(err);
+    fs.rename(TMP_FILE, DATA_FILE, done);
+  });
+}
+function saveSync() {
+  fs.writeFileSync(TMP_FILE, JSON.stringify(Object.fromEntries(store)));
+  fs.renameSync(TMP_FILE, DATA_FILE);
 }
 
 const segments = p => String(p).split('/');
@@ -364,10 +389,15 @@ wss.on('connection', ws => {
     try { msg = JSON.parse(raw); } catch { return; }
     if (!msg || typeof msg !== 'object') return;
     if (msg.op === 'hello') {
+      if (client.uid) return send(ws, { id: msg.id, error: { code: 'invalid_argument', message: 'schon angemeldet' } });
       const code = String(msg.table || '').toUpperCase();
       if (!CODE_RE.test(code) || !tableMeta(code)) return send(ws, { id: msg.id, error: { code: 'not_found', message: 'Tisch nicht gefunden' } });
-      // jede Browser-Sitzung bringt ihre eigene, zufällige Kennung mit
-      client.uid = /^u_[A-Za-z0-9]{8,40}$/.test(msg.uid) ? msg.uid : 'u_' + crypto.randomBytes(12).toString('hex');
+      // Die Kennung leitet der Server aus dem geheimen Schlüssel des Browser-Tabs ab.
+      // Die Kennung selbst sehen alle am Tisch, den Schlüssel nur der Tab. Wer nur die
+      // Kennung kennt, kann sich damit also nicht als diese Person anmelden.
+      client.uid = typeof msg.secret === 'string' && SECRET_RE.test(msg.secret)
+        ? 'u_' + sha256('treetek-pp-uid:' + msg.secret).slice(0, 32)
+        : 'u_' + crypto.randomBytes(16).toString('hex');
       client.table = code;
       clients.add(client);
       const moderator = msg.modKey ? grantModeration(client, msg.modKey) : false;
@@ -444,7 +474,8 @@ server.listen(PORT, () => {
 });
 
 function shutdown() {
-  try { fs.writeFileSync(DATA_FILE, JSON.stringify(Object.fromEntries(store))); } catch { /* egal */ }
+  clearTimeout(saveTimer);
+  try { saveSync(); } catch (err) { console.warn('Speichern beim Beenden fehlgeschlagen:', err.message); }
   process.exit(0);
 }
 process.on('SIGINT', shutdown);

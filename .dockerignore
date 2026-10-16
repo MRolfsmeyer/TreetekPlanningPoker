@@ -1,0 +1,7 @@
+node_modules
+dist
+.git
+.github
+planning-poker-daten*.json
+*.json.tmp
+*.zip

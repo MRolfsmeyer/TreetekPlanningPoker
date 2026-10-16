@@ -1,0 +1,6 @@
+node_modules/
+dist/
+planning-poker-daten*.json
+*.json.tmp
+*.zip
+.DS_Store
