@@ -758,6 +758,10 @@ function initials(name) {
 // ===========================================================================
 let db = null, user = null, uid = null;
 let canWrite = true;
+// Von der Startseite kommend: Name steht fest, Person wird ohne zweite Abfrage hingesetzt
+let autoJoin = null;          // { name } solange das Hinsetzen läuft
+let autoJoinSent = false;
+let playersLoaded = false;
 let table = normalizeTable(null);
 let tableExists = false, tableLoaded = false;
 let players = new Map();                 // id -> { name, role, round, voted, vote, joinedAt, elmoRound, elmoAt }
@@ -1072,6 +1076,7 @@ function renderGate({ ready, joined }) {
   else if (!ready) connecting();
   else if (!canWrite) show('Du schaust zu', 'Du siehst den Tisch live. Zum Mitspielen muss dich die Person, die den Tisch geteilt hat, als Mitwirkende:r freigeben.');
   else if (joined) { el.gate.hidden = true; el['join-form'].hidden = true; }
+  else if (autoJoin) show('Du wirst an den Tisch gesetzt …', `Einen Moment, ${autoJoin.name}.`);
   else show('Setz dich an den Tisch', 'Gib deinen Namen ein und wähle, ob du mitschätzt oder nur beobachtest. Beides kannst du später ändern.', true);
 }
 
@@ -1617,6 +1622,30 @@ function bindEvents() {
   el['mod-link'].addEventListener('click', copyModLink);
 }
 
+// Übergabe der Startseite lesen (gilt nur für diesen Tisch, nur in diesem Tab, nur einmal)
+function takeAutoJoin() {
+  let raw = null;
+  try { raw = sessionStorage.getItem('pp.autojoin'); sessionStorage.removeItem('pp.autojoin'); } catch { return null; }
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw);
+    const m = location.pathname.match(/^\/t\/([A-Za-z0-9]{6})/);
+    const name = cleanName(data && data.name);
+    if (!m || !name || String(data.code).toUpperCase() !== m[1].toUpperCase()) return null;
+    if (!(Date.now() - Number(data.at) < 10 * 60 * 1000)) return null;
+    return { name };
+  } catch { return null; }
+}
+
+function tryAutoJoin() {
+  if (!autoJoin || !uid || !tableLoaded || !playersLoaded) return;
+  if (players.has(uid)) { autoJoin = null; return; }      // sitzt schon (z. B. nach Neuladen)
+  if (autoJoinSent) return;
+  autoJoinSent = true;
+  el['join-name'].value = autoJoin.name;
+  join('voter');
+}
+
 // ===========================================================================
 // Start
 // ===========================================================================
@@ -1634,6 +1663,12 @@ async function boot() {
   let suggested = local.get(STORAGE.name) || '';
   if (!suggested && user) suggested = (await user.me()).name || '';
   if (!el['join-name'].value) el['join-name'].value = cleanName(suggested);
+  autoJoin = takeAutoJoin();
+  if (autoJoin) {
+    el['join-name'].value = autoJoin.name;
+    // Klappt das Hinsetzen nicht, erscheint nach kurzer Zeit wieder die normale Namensabfrage
+    setTimeout(() => { if (autoJoin) { autoJoin = null; scheduleRender(); } }, 8000);
+  }
   if (user && (await user.can('data.write')) === false) canWrite = false;
   try { isOwner = !!(user && typeof user.isOwner === 'function' && await user.isOwner()); } catch { isOwner = false; }
   try { modLinkUrl = typeof window.claude.moderationUrl === 'function' ? await window.claude.moderationUrl() : null; } catch { modLinkUrl = null; }
@@ -1654,12 +1689,15 @@ async function boot() {
     table = normalizeTable(s.exists ? s.data() : null);
     revealOwnCard();
     maybeClaimModeration();
+    tryAutoJoin();
     scheduleRender();
   }, onErr);
   db.collection('players').onSnapshot(s => {
     players = new Map(s.docs.map(doc => [doc.id, doc.data()]));
+    playersLoaded = true;
     revealOwnCard();
     maybeClaimModeration();
+    tryAutoJoin();
     scheduleRender();
   }, onErr);
   try {

@@ -8,9 +8,13 @@ Dieses Paket läuft **ohne claude.ai**: Ein kleiner Node.js-Server liefert die S
 
 ## So funktioniert es
 
-1. **Startseite** (`/`): „Neuen Tisch starten“ mit optionalem Teamnamen, oder „Mit Code beitreten“.
-2. Jeder Tisch hat einen **eigenen Link** (`/t/ABC234`) und einen **sechsstelligen Code**. Link, QR-Code und Code stehen oben am Tisch.
-3. Wer den Tisch startet, **moderiert** ihn. Mitschätzen geht trotzdem, Moderation ist keine Rolle wie PO oder SM.
+1. **Startseite** (`/`): Namen eingeben, dann wählen:
+   - **Neuen Tisch erstellen** (Teamname optional) → „Tisch erstellen“
+   - **Tisch beitreten** → sechsstelligen Code eingeben → „Tisch beitreten“
+
+   In beiden Fällen sitzt man danach direkt am Tisch, ohne zweite Namensabfrage.
+2. Jeder Tisch hat einen **eigenen Link** (`/t/ABC234`) und einen **sechsstelligen Code**. Link, QR-Code und Code stehen oben am Tisch. Wer über Link oder QR-Code kommt, gibt seinen Namen direkt am Tisch ein.
+3. Wer den Tisch erstellt, **moderiert** ihn. Mitschätzen geht trotzdem, Moderation ist keine Rolle wie PO oder SM.
 
 ### Rechte
 

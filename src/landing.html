@@ -86,6 +86,7 @@ input {
   font: inherit; padding: .7rem .9rem; border-radius: 10px; border: 1px solid var(--line);
   background: var(--surface-2); color: var(--fg); width: 100%;
 }
+input:not(.code) { font-weight: 400; }
 input.code { text-transform: uppercase; letter-spacing: .25em; font-weight: 700; font-variant-numeric: tabular-nums; }
 button {
   font: inherit; cursor: pointer; border-radius: 10px; padding: .7rem 1.2rem; font-weight: 700;
@@ -97,6 +98,13 @@ button:disabled { opacity: .6; cursor: wait; }
 button.ghost { background: var(--surface); color: var(--accent); box-shadow: none; }
 button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .error { color: var(--danger); background: var(--danger-bg); border-radius: 10px; padding: 8px 12px; font-size: .9rem; margin: 0; }
+.optional { font-weight: 400; color: var(--muted); }
+.choice { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.choice-btn { box-shadow: none; border-color: transparent; background: transparent; color: var(--muted); padding: .6rem .5rem; font-size: .95rem; }
+.choice-btn:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); transform: none; }
+.choice-btn[aria-pressed="true"], .choice-btn[aria-pressed="true"]:hover { background: var(--surface); color: var(--accent); border-color: var(--line); box-shadow: 0 2px 8px var(--shadow); }
+.pane { display: grid; gap: 12px; }
+input[aria-invalid="true"] { border-color: var(--danger); }
 .mine { display: grid; gap: 8px; }
 .mine h3 { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); }
 .mine ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -123,6 +131,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 
 @media (max-width: 860px) {
   .hero { grid-template-columns: 1fr; }
+  .ways { order: -1; }   /* auf schmalen Bildschirmen zuerst der Einstieg, dann die Erklärung */
   .steps { grid-template-columns: 1fr; }
   .fan { height: 170px; }
 }
@@ -131,6 +140,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
   .brand-text span:last-child { font-size: 1.25rem; }
   .fan { height: 150px; }
   .fan img { max-width: 27%; }
+  .choice-btn { font-size: .88rem; }
 }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }
 </style>
@@ -159,27 +169,31 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
     </section>
 
     <section class="ways">
-      <form class="panel" id="start-form">
-        <h2>Neuen Tisch starten</h2>
-        <label class="field" for="team-name">Teamname (optional)
-          <input id="team-name" maxlength="60" placeholder="z. B. SchüCal Team A" autocomplete="off">
+      <div class="panel entry" id="entry">
+        <h2>An den Tisch</h2>
+        <label class="field" for="player-name">Dein Name
+          <input id="player-name" maxlength="30" autocomplete="nickname" placeholder="z. B. Maik" enterkeyhint="next">
         </label>
-        <button type="submit" id="start-btn">Tisch starten</button>
-        <p>Du moderierst diesen Tisch: Aufdecken, nächste Runde, Zurücksetzen. Mitschätzen kannst du trotzdem, und weitere Personen kannst du zur Moderation machen.</p>
-        <p class="error" id="start-error" hidden></p>
-      </form>
-
-      <form class="panel" id="join-form">
-        <h2>Mit Code beitreten</h2>
-        <label class="field" for="join-code">Code des Tisches
-          <div class="row">
-            <input class="code" id="join-code" maxlength="6" placeholder="ABC234" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text">
-            <button type="submit" class="ghost">Beitreten</button>
-          </div>
-        </label>
-        <p class="error" id="join-error" hidden></p>
-      </form>
-
+        <div class="choice" role="group" aria-label="Was möchtest du tun?">
+          <button type="button" class="choice-btn" id="mode-create" aria-pressed="true">Neuen Tisch erstellen</button>
+          <button type="button" class="choice-btn" id="mode-join" aria-pressed="false">Tisch beitreten</button>
+        </div>
+        <form id="start-form" class="pane" novalidate>
+          <label class="field" for="team-name"><span>Teamname <span class="optional">(optional)</span></span>
+            <input id="team-name" maxlength="60" placeholder="z. B. SchüCal Team A" autocomplete="off" enterkeyhint="go">
+          </label>
+          <button type="submit" id="start-btn">Tisch erstellen</button>
+          <p>Du moderierst diesen Tisch: Aufdecken, nächste Runde, Zurücksetzen. Mitschätzen kannst du trotzdem, und weitere Personen kannst du zur Moderation machen.</p>
+        </form>
+        <form id="join-form" class="pane" novalidate hidden>
+          <label class="field" for="join-code"><span>Code des Tisches <span class="optional">(6 Zeichen)</span></span>
+            <input class="code" id="join-code" maxlength="6" placeholder="ABC234" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" enterkeyhint="go">
+          </label>
+          <button type="submit" id="join-btn">Tisch beitreten</button>
+          <p>Den Code siehst du am Tisch oben unter „Planning Poker“. Frag die Person, die den Tisch erstellt hat.</p>
+        </form>
+        <p class="error" id="entry-error" role="alert" hidden></p>
+      </div>
       <div class="panel mine" id="mine" hidden>
         <h3>Deine Tische auf diesem Gerät</h3>
         <ul id="mine-list"></ul>
@@ -188,8 +202,8 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
   </main>
 
   <section class="steps" aria-label="So funktioniert es">
-    <div class="step"><h3>Tisch starten</h3><p>Teamname eingeben, fertig. Der Tisch bekommt einen eigenen Link und einen sechsstelligen Code.</p></div>
-    <div class="step"><h3>Link oder QR-Code teilen</h3><p>Alle öffnen den Link oder scannen den QR-Code, geben ihren Namen ein und sitzen am Tisch.</p></div>
+    <div class="step"><h3>Tisch erstellen</h3><p>Namen eingeben, „Tisch erstellen“, fertig. Der Tisch bekommt einen sechsstelligen Code und einen eigenen Link.</p></div>
+    <div class="step"><h3>Team dazuholen</h3><p>Alle geben hier ihren Namen und den Code ein und treten bei. Oder sie öffnen den Link bzw. scannen den QR-Code.</p></div>
     <div class="step"><h3>Schätzen</h3><p>Jede:r wählt verdeckt. Die Moderation deckt mit Countdown auf, und ihr sprecht über die Unterschiede.</p></div>
   </section>
 
@@ -200,48 +214,105 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 'use strict';
 const $ = id => document.getElementById(id);
 const CODE_RE = /^[A-Z2-9]{6}$/;
+const MAX_NAME = 30;
 const cleanCode = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+const cleanName = v => String(v || '').replace(/\s+/g, ' ').trim().slice(0, MAX_NAME);
+const store = {
+  get(area, k) { try { return window[area].getItem(k); } catch { return null; } },
+  set(area, k, v) { try { window[area].setItem(k, v); } catch { /* ohne Speicher geht es auch */ } },
+};
 
-function showError(id, text) { $(id).textContent = text; $(id).hidden = !text; }
+function showError(text, field) {
+  $('entry-error').textContent = text || '';
+  $('entry-error').hidden = !text;
+  for (const id of ['player-name', 'join-code']) $(id).removeAttribute('aria-invalid');
+  if (field) { $(field).setAttribute('aria-invalid', 'true'); $(field).focus(); }
+}
 
-// Neuen Tisch starten: Server legt ihn an, wir öffnen ihn mit Moderationsschlüssel
+// Name: zuletzt benutzten Namen vorschlagen (denselben Speicher nutzt der Tisch)
+$('player-name').value = cleanName(store.get('localStorage', 'pp.name'));
+function takeName() {
+  const name = cleanName($('player-name').value);
+  if (!name) { showError('Bitte gib deinen Namen ein. So sehen dich die anderen am Tisch.', 'player-name'); return null; }
+  store.set('localStorage', 'pp.name', name);
+  return name;
+}
+// Der Tisch setzt dich nach dem Wechsel direkt mit diesem Namen hin (nur in diesem Tab, nur einmal)
+function goToTable(code, name, url) {
+  store.set('sessionStorage', 'pp.autojoin', JSON.stringify({ code, name, at: Date.now() }));
+  location.href = url || '/t/' + code;
+}
+
+// Auswahl: erstellen oder beitreten
+function setMode(mode) {
+  const join = mode === 'join';
+  $('mode-create').setAttribute('aria-pressed', String(!join));
+  $('mode-join').setAttribute('aria-pressed', String(join));
+  $('start-form').hidden = join;
+  $('join-form').hidden = !join;
+  showError('');
+}
+$('mode-create').addEventListener('click', () => { setMode('create'); if (cleanName($('player-name').value)) $('team-name').focus(); });
+$('mode-join').addEventListener('click', () => { setMode('join'); if (cleanName($('player-name').value)) $('join-code').focus(); });
+// Enter im Namensfeld führt zum nächsten Schritt der gewählten Variante
+$('player-name').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  if (!$('join-form').hidden) $('join-code').focus(); else $('team-name').focus();
+});
+
+// Neuen Tisch erstellen: Server legt ihn an, wir öffnen ihn mit Moderationsschlüssel
 $('start-form').addEventListener('submit', async e => {
   e.preventDefault();
-  showError('start-error', '');
+  showError('');
+  const name = takeName();
+  if (!name) return;
   const btn = $('start-btn');
-  btn.disabled = true; btn.textContent = 'Tisch wird angelegt …';
+  btn.disabled = true; btn.textContent = 'Tisch wird erstellt …';
   try {
     const res = await fetch('/api/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: $('team-name').value }) });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Der Tisch konnte nicht angelegt werden.');
-    location.href = data.url;
+    if (!res.ok) throw new Error(data.error || 'Der Tisch konnte nicht erstellt werden.');
+    goToTable(data.code, name, data.url);
   } catch (err) {
-    showError('start-error', err.message || 'Der Tisch konnte nicht angelegt werden. Bitte nochmal versuchen.');
-    btn.disabled = false; btn.textContent = 'Tisch starten';
+    showError(err.message || 'Der Tisch konnte nicht erstellt werden. Bitte nochmal versuchen.');
+    btn.disabled = false; btn.textContent = 'Tisch erstellen';
   }
 });
 
-// Mit Code beitreten
+// Tisch beitreten: Code prüfen, dann direkt an den Tisch
 $('join-code').addEventListener('input', e => { e.target.value = cleanCode(e.target.value); });
 $('join-form').addEventListener('submit', async e => {
   e.preventDefault();
+  showError('');
+  const name = takeName();
+  if (!name) return;
   const code = cleanCode($('join-code').value);
-  if (!CODE_RE.test(code)) return showError('join-error', 'Der Code hat sechs Zeichen, z. B. ABC234.');
+  if (!CODE_RE.test(code)) return showError('Der Code hat sechs Zeichen, z. B. ABC234.', 'join-code');
+  const btn = $('join-btn');
+  btn.disabled = true; btn.textContent = 'Tisch wird gesucht …';
   try {
     const res = await fetch('/api/tables/' + code, { cache: 'no-store' });
-    if (!res.ok) return showError('join-error', `Einen Tisch mit dem Code ${code} gibt es nicht. Bitte den Code prüfen.`);
-    location.href = '/t/' + code;
-  } catch { showError('join-error', 'Keine Verbindung zum Server. Bitte nochmal versuchen.'); }
+    if (!res.ok) {
+      btn.disabled = false; btn.textContent = 'Tisch beitreten';
+      return showError(`Einen Tisch mit dem Code ${code} gibt es nicht. Bitte den Code prüfen.`, 'join-code');
+    }
+    goToTable(code, name);
+  } catch {
+    btn.disabled = false; btn.textContent = 'Tisch beitreten';
+    showError('Keine Verbindung zum Server. Bitte nochmal versuchen.');
+  }
 });
 
 // Weiterleitung von einem Tisch, den es nicht (mehr) gibt
 const missing = cleanCode(new URLSearchParams(location.search).get('fehlt'));
 if (missing) {
+  setMode('join');
   $('join-code').value = missing;
-  showError('join-error', `Einen Tisch mit dem Code ${missing} gibt es nicht (mehr). Starte einen neuen Tisch oder prüfe den Code.`);
+  showError(`Einen Tisch mit dem Code ${missing} gibt es nicht (mehr). Erstelle einen neuen Tisch oder prüfe den Code.`, 'join-code');
 }
 
-// Tische, die auf diesem Gerät gestartet wurden (Moderationsschlüssel im Browser gemerkt)
+// Tische, die auf diesem Gerät erstellt wurden (Moderationsschlüssel im Browser gemerkt)
 (async () => {
   let codes = [];
   try {
@@ -258,9 +329,17 @@ if (missing) {
       const info = await res.json();
       const a = document.createElement('a');
       a.href = '/t/' + code;
-      const name = document.createElement('span'); name.textContent = info.name || 'Tisch ohne Namen';
+      // mit eingetragenem Namen direkt hinsetzen, sonst fragt der Tisch nach dem Namen
+      a.addEventListener('click', e => {
+        const name = cleanName($('player-name').value);
+        if (!name) return;
+        e.preventDefault();
+        store.set('localStorage', 'pp.name', name);
+        goToTable(code, name);
+      });
+      const label = document.createElement('span'); label.textContent = info.name || 'Tisch ohne Namen';
       const tag = document.createElement('span'); tag.className = 'code-tag'; tag.textContent = code;
-      a.append(name, tag);
+      a.append(label, tag);
       const li = document.createElement('li'); li.append(a); list.append(li);
     } catch { /* weiter */ }
   }
