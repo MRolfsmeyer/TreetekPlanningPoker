@@ -220,8 +220,12 @@ input#story:disabled { opacity: .75; }
 .arena.crowded .seat .card { width: 62px; }
 
 /* Moderation: Markierung am Platz und Menü für Moderierende */
+/* Das Abzeichen sitzt als Etikett auf der Oberkante der Karte, damit der Name die volle Breite behält */
+.seat { position: relative; }
 .mod-badge {
-  flex: none; display: inline-grid; place-items: center;
+  position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 2;
+  box-shadow: 0 0 0 2px var(--bg, #f3f4fa);
+  display: inline-grid; place-items: center;
   font-size: .62rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
   color: #fff; background: var(--brand); border-radius: 999px; padding: 2px 6px;
 }
@@ -445,6 +449,7 @@ summary { cursor: pointer; font-weight: 700; }
   .dist-cards { justify-content: center; }
 }
 @media (max-width: 480px) {
+  .seat .you-suffix { display: none; }   /* eigener Platz ist fett, der Zusatz kostet hier zu viel Breite */
   .card { width: 50px; }
   .hand .card { width: var(--hand-w, 54px); }
   .seat { width: 92px; }
@@ -1105,11 +1110,11 @@ function renderSeats({ list, nameOf, phase }) {
       tabindex: manage ? '0' : null, role: manage ? 'button' : null,
       'aria-label': manage ? `${name}: Moderation verwalten` : null,
     },
+      isMod(p.id) && h('span', { class: 'mod-badge', title: 'Moderation' }, 'Mod'),
       card,
       h('div', { class: 'seat-label' },
         h('span', { class: 'avatar', 'aria-hidden': 'true' }, initials(name)),
-        h('span', { class: 'seat-name', title: name }, p.id === uid ? `${name} · du` : name),
-        isMod(p.id) && h('span', { class: 'mod-badge', title: 'Moderation' }, 'Mod')));
+        h('span', { class: 'seat-name', title: name }, name, p.id === uid && h('span', { class: 'you-suffix' }, ' · du'))));
   });
   el.arena.classList.toggle('crowded', list.length > 10);
   el['seats-top'].replaceChildren(...seats.filter((_, i) => i % 2 === 0));
